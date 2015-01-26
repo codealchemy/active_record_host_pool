@@ -76,6 +76,12 @@ module ActiveRecordHostPool
       _clear_connection_proxy_cache
     end
 
+    def automatic_reconnect=(val)
+      p = _connection_pool(false)
+      return unless p
+      _connection_pool.automatic_reconnect = val if _connection_pool.respond_to?(:automatic_reconnect=)
+    end
+
   private
     def rescuable_errors
       @rescuable_errors ||= begin
