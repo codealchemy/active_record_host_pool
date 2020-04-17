@@ -25,6 +25,13 @@ module ARHPTestSetup
     return if ARHPTestSetup.const_defined?('Test1')
 
     eval <<-RUBY
+      # The placement of the Test1Shard class is important so that its
+      # connection will not be the most recent connection established
+      # for test_host_1.
+      class Test1Shard < ::ActiveRecord::Base
+        establish_connection(:test_host_1_db_shard)
+      end
+
       class Test1 < ActiveRecord::Base
         self.table_name = "tests"
         establish_connection(:test_host_1_db_1)
