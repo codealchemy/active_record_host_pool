@@ -60,15 +60,32 @@ class ActiveRecordHostPoolTest < Minitest::Test
     assert_equal(Test1.connection.raw_connection, Test1Shard.connection.raw_connection)
   end
 
-  def test_models_with_matching_hosts_and_non_matching_databases_do_not_mix_up_underlying_database
-    simulate_rails_app_active_record_railties
+  if ActiveRecord.version >= Gem::Version.new('6.0')
+    def test_models_with_matching_hosts_and_non_matching_databases_issue_exists_without_arhp_patch
+      # Remove patch that fixes an issue in Rails 6+ to ensure it still
+      # exists. If this begins to fail then it may mean that Rails has fixed
+      # the issue so that it no longer occurs.
+      method_body = ActiveRecordHostPool::ResetActiveDatabaseAfterClearingCache.instance_method(:clear_query_caches_for_current_thread)
+      ActiveRecordHostPool::ResetActiveDatabaseAfterClearingCache.remove_method(:clear_query_caches_for_current_thread)
 
-    # ActiveRecord 6.0 introduced a change that surfaced a problematic code
-    # path in active_record_host_pool: Clearing the cache across connection
-    # handlers can cause the shared host pool to change the underlying
-    # database out from under an in-progress operation.
-    # See lib/active_record_host_pool/connection_handling.rb for more
-    ActiveRecord::Base.cache { Test1Shard.create! }
+      exception = assert_raises(ActiveRecord::StatementInvalid) do
+        ActiveRecord::Base.cache { Test1Shard.create! }
+      end
+
+      assert_equal("Mysql2::Error: Table 'arhp_test_2.test1_shards' doesn't exist", exception.message)
+    ensure
+      ActiveRecordHostPool::ResetActiveDatabaseAfterClearingCache.define_method(:clear_query_caches_for_current_thread, method_body)
+    end
+
+    def test_models_with_matching_hosts_and_non_matching_databases_do_not_mix_up_underlying_database
+      simulate_rails_app_active_record_railties
+
+      # ActiveRecord 6.0 introduced a change that surfaced a problematic code
+      # path in active_record_host_pool when learing caches across connection
+      # handlers which can cause the database to change.
+      # See ActiveRecordHostPool::ResetActiveDatabaseAfterClearingCache
+      ActiveRecord::Base.cache { Test1Shard.create! }
+    end
   end
 
   def test_connection_returns_a_proxy
