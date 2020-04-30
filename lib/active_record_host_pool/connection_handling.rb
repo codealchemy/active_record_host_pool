@@ -18,7 +18,7 @@ if ActiveRecord.version >= Gem::Version.new('6.0')
     #
     # This is a private Rails API and may change in future releases as they're
     # actively working on sharding in Rails 6 and above.
-    module ResetActiveDatabaseAfterClearingCache
+    module ClearQueryCachePatch
       def clear_query_caches_for_current_thread
         host_pool_current_database_was = connection.unproxied._host_pool_current_database
         super
@@ -29,5 +29,5 @@ if ActiveRecord.version >= Gem::Version.new('6.0')
     end
   end
 
-  ActiveRecord::Base.singleton_class.prepend ActiveRecordHostPool::ResetActiveDatabaseAfterClearingCache
+  ActiveRecord::Base.singleton_class.prepend ActiveRecordHostPool::ClearQueryCachePatch
 end

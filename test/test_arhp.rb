@@ -65,8 +65,8 @@ class ActiveRecordHostPoolTest < Minitest::Test
       # Remove patch that fixes an issue in Rails 6+ to ensure it still
       # exists. If this begins to fail then it may mean that Rails has fixed
       # the issue so that it no longer occurs.
-      method_body = ActiveRecordHostPool::ResetActiveDatabaseAfterClearingCache.instance_method(:clear_query_caches_for_current_thread)
-      ActiveRecordHostPool::ResetActiveDatabaseAfterClearingCache.remove_method(:clear_query_caches_for_current_thread)
+      method_body = ActiveRecordHostPool::ClearQueryCachePatch.instance_method(:clear_query_caches_for_current_thread)
+      ActiveRecordHostPool::ClearQueryCachePatch.remove_method(:clear_query_caches_for_current_thread)
 
       exception = assert_raises(ActiveRecord::StatementInvalid) do
         ActiveRecord::Base.cache { Test1Shard.create! }
@@ -74,7 +74,7 @@ class ActiveRecordHostPoolTest < Minitest::Test
 
       assert_equal("Mysql2::Error: Table 'arhp_test_2.test1_shards' doesn't exist", exception.message)
     ensure
-      ActiveRecordHostPool::ResetActiveDatabaseAfterClearingCache.define_method(:clear_query_caches_for_current_thread, method_body)
+      ActiveRecordHostPool::ClearQueryCachePatch.define_method(:clear_query_caches_for_current_thread, method_body)
     end
 
     def test_models_with_matching_hosts_and_non_matching_databases_do_not_mix_up_underlying_database
@@ -83,7 +83,7 @@ class ActiveRecordHostPoolTest < Minitest::Test
       # ActiveRecord 6.0 introduced a change that surfaced a problematic code
       # path in active_record_host_pool when learing caches across connection
       # handlers which can cause the database to change.
-      # See ActiveRecordHostPool::ResetActiveDatabaseAfterClearingCache
+      # See ActiveRecordHostPool::ClearQueryCachePatch
       ActiveRecord::Base.cache { Test1Shard.create! }
     end
   end
