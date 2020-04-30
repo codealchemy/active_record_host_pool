@@ -1,30 +1,22 @@
 # frozen_string_literal: true
 
 module ActiveRecordHostPool
-  # ActiveRecord 6.0 introduces multiple database support. This introduces a
-  # change where dirtying operations on a Mysql2Adapter instance calls out to
-  # ActiveRecord::Base.clear_query_caches_for_current_thread. This will
-  # for any active connections whose query caches need to be cleared. This
-  # involves iterating over every connection handler's connection pool
-  # looking for active active connections.
+  # ActiveRecord 6.0 introduced multiple database support. With that, an update
+  # has been made in https://github.com/rails/rails/pull/35089 to ensure that
+  # all query caches are cleared across connection handlers and pools. If you
+  # write on one connection, the other connection will have the update that
+  # occurred.
   #
-  # This exposes an issue with active active_record_host_pool since by
-  # referencing a connection it causes the underlying Mysql2Adapter instance
-  # to potentially change its _host_pool_current_database. This means
-  # mid-way into carrying out an operation like inserting a record the
-  # act of clearing the query cache may select a new database and leave it
-  # changed. This can result in the insert SQL then being sent to a new
-  # database.
+  # This broke ARHP which implements its own pool, allowing you to access
+  # multiple databases with the same connection (e.g. 1 connection for 100
+  # shards on the same server)
   #
-  # This module wraps ActiveRecord::Base.clear_query_caches_for_current_thread
-  # in order to restore the current connection's database to what it was
-  # before the caches were attempted to be cleared.
+  # This patch maintains the reference to the database during the cache clearing
+  # to ensure that the database doesn't get swapped out mid-way into an
+  # operation.
   #
-  # Before ActiveRecord 6 this potential issue existed in the
-  # active_record_host_pool library but no code paths exercised it. This
-  # module does not resolve the general issue and the underlying issue still
-  # exists, but currently clearing the cache is the only known code path that
-  # exercises this problem so that is all that is patched.
+  # This is a private Rails API and may change in future releases as they're
+  # actively working on sharding in Rails 6 and above.
   module ResetActiveDatabaseAfterClearingCache
     def clear_query_caches_for_current_thread
       host_pool_current_database_was = connection.unproxied._host_pool_current_database
