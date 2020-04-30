@@ -62,19 +62,18 @@ class ActiveRecordHostPoolTest < Minitest::Test
 
   if ActiveRecord.version >= Gem::Version.new('6.0')
     def test_models_with_matching_hosts_and_non_matching_databases_issue_exists_without_arhp_patch
+      simulate_rails_app_active_record_railties
+
       # Remove patch that fixes an issue in Rails 6+ to ensure it still
       # exists. If this begins to fail then it may mean that Rails has fixed
       # the issue so that it no longer occurs.
-      method_body = ActiveRecordHostPool::ClearQueryCachePatch.instance_method(:clear_query_caches_for_current_thread)
-      ActiveRecordHostPool::ClearQueryCachePatch.remove_method(:clear_query_caches_for_current_thread)
+      without_module_patch(ActiveRecordHostPool::ClearQueryCachePatch, :clear_query_caches_for_current_thread) do
+        exception = assert_raises(ActiveRecord::StatementInvalid) do
+          ActiveRecord::Base.cache { Test1Shard.create! }
+        end
 
-      exception = assert_raises(ActiveRecord::StatementInvalid) do
-        ActiveRecord::Base.cache { Test1Shard.create! }
+        assert_equal("Mysql2::Error: Table 'arhp_test_2.test1_shards' doesn't exist", exception.message)
       end
-
-      assert_equal("Mysql2::Error: Table 'arhp_test_2.test1_shards' doesn't exist", exception.message)
-    ensure
-      ActiveRecordHostPool::ClearQueryCachePatch.define_method(:clear_query_caches_for_current_thread, method_body)
     end
 
     def test_models_with_matching_hosts_and_non_matching_databases_do_not_mix_up_underlying_database

@@ -67,4 +67,15 @@ module ARHPTestSetup
   def current_database(klass)
     klass.connection.select_value('select DATABASE()')
   end
+
+  # Remove a method from a given module that fixes something.
+  # Execute the passed in block.
+  # Re-add the method back to the module.
+  def without_module_patch(mod, method_name)
+    method_body = mod.instance_method(method_name)
+    mod.remove_method(method_name)
+    yield if block_given?
+  ensure
+    mod.define_method(method_name, method_body)
+  end
 end
