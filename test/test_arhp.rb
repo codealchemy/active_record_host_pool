@@ -217,7 +217,7 @@ class ActiveRecordHostPoolTest < Minitest::Test
     if ActiveRecord.version >= Gem::Version.new('6.0')
       # Necessary for testing ActiveRecord 6.0 which uses the connection
       # handlers when clearing query caches across all handlers when
-      # an operation that dirties the cache isinvolved (e.g. create/insert,
+      # an operation that dirties the cache is involved (e.g. create/insert,
       # update, delete/destroy, truncate, etc.)
       ActiveRecord::Base.connection_handlers = {
         ActiveRecord::Base.writing_role => ActiveRecord::Base.default_connection_handler
